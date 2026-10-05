@@ -1,0 +1,10 @@
+# Build output
+build/
+vendor/whisper.cpp/build/
+
+# Whisper models (hundreds of MB each) — fetch with scripts/download-model.sh
+models/
+
+# macOS / local tooling
+.DS_Store
+.claude/

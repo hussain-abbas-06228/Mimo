@@ -1,0 +1,101 @@
+#!/bin/bash
+# Builds LiveTranslate.app from scratch.
+# 1. Compiles whisper.cpp (static libs, Metal GPU) if not already built.
+# 2. Compiles the Swift app and links the libs.
+# 3. Assembles and ad-hoc signs build/LiveTranslate.app.
+set -euo pipefail
+cd "$(dirname "$0")"
+ROOT="$PWD"
+WCPP="$ROOT/vendor/whisper.cpp"
+
+# --- 1. whisper.cpp ---------------------------------------------------------
+if [ ! -f "$WCPP/CMakeLists.txt" ]; then
+  echo "==> Fetching whisper.cpp submodule…"
+  git submodule update --init --depth 1 vendor/whisper.cpp
+fi
+command -v cmake >/dev/null || { echo "cmake is required: brew install cmake"; exit 1; }
+
+if [ ! -f "$WCPP/build/src/libwhisper.a" ]; then
+  echo "==> Building whisper.cpp (one-time, takes a few minutes)…"
+  cmake -S "$WCPP" -B "$WCPP/build" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DGGML_METAL=ON \
+    -DGGML_METAL_EMBED_LIBRARY=ON \
+    -DWHISPER_BUILD_EXAMPLES=ON \
+    -DWHISPER_BUILD_TESTS=OFF \
+    -DWHISPER_BUILD_SERVER=OFF
+  cmake --build "$WCPP/build" -j8 --config Release
+fi
+
+# --- 1b. App icon -----------------------------------------------------------
+if [ ! -f assets/AppIcon.icns ]; then
+  echo "==> Generating app icon…"
+  mkdir -p assets
+  swift scripts/make-icon.swift assets/AppIcon.iconset
+  iconutil -c icns assets/AppIcon.iconset -o assets/AppIcon.icns
+fi
+
+# --- 2. Swift app -----------------------------------------------------------
+echo "==> Compiling LiveTranslate…"
+mkdir -p build
+
+swiftc -O -swift-version 5 -target arm64-apple-macos14.0 \
+  -import-objc-header src/Bridging.h \
+  -I "$WCPP/include" -I "$WCPP/ggml/include" \
+  src/main.swift src/OverlayPanel.swift src/ContentView.swift \
+  src/AudioCapture.swift src/WhisperEngine.swift src/TranscriptionController.swift \
+  -L "$WCPP/build/src" \
+  -L "$WCPP/build/ggml/src" \
+  -L "$WCPP/build/ggml/src/ggml-blas" \
+  -L "$WCPP/build/ggml/src/ggml-metal" \
+  -lwhisper -lggml -lggml-base -lggml-cpu -lggml-blas -lggml-metal \
+  -lc++ \
+  -framework Accelerate -framework Metal -framework MetalKit \
+  -framework ScreenCaptureKit -framework CoreMedia -framework CoreAudio \
+  -o build/LiveTranslate-bin
+
+# --- 3. App bundle ----------------------------------------------------------
+echo "==> Assembling LiveTranslate.app…"
+APP="build/LiveTranslate.app"
+rm -rf "$APP"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+cp build/LiveTranslate-bin "$APP/Contents/MacOS/LiveTranslate"
+cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+
+cat > "$APP/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>               <string>LiveTranslate</string>
+  <key>CFBundleDisplayName</key>        <string>LiveTranslate</string>
+  <key>CFBundleIdentifier</key>         <string>io.github.hussain-abbas-06228.livetranslate</string>
+  <key>CFBundleExecutable</key>         <string>LiveTranslate</string>
+  <key>CFBundlePackageType</key>        <string>APPL</string>
+  <key>CFBundleShortVersionString</key> <string>1.0</string>
+  <key>CFBundleVersion</key>            <string>1</string>
+  <key>LSMinimumSystemVersion</key>     <string>14.0</string>
+  <key>NSHighResolutionCapable</key>    <true/>
+  <key>CFBundleIconFile</key>           <string>AppIcon</string>
+  <key>NSAudioCaptureUsageDescription</key>
+  <string>LiveTranslate listens to your Mac's audio output to translate German speech in real time.</string>
+  <key>LTModelDir</key>                 <string>$ROOT/models</string>
+</dict>
+</plist>
+PLIST
+
+codesign --force -s - "$APP"
+
+# Rebuilding changes the app's code signature, which invalidates any previously
+# granted Screen & System Audio Recording permission (macOS keeps showing the
+# toggle as ON but denies the new binary). Clear the stale entry so the app
+# asks fresh on next launch instead of failing silently.
+tccutil reset ScreenCapture io.github.hussain-abbas-06228.livetranslate >/dev/null 2>&1 || true
+
+echo "==> Done: $APP"
+ls models/ggml-*.bin >/dev/null 2>&1 || echo "    No models yet — run scripts/download-model.sh first."
+echo "    Launch with: open \"$APP\"   (or ./run.sh)"
+echo "    NOTE: after a rebuild, macOS will ask for the Screen & System Audio"
+echo "    Recording permission again — this is expected. Enable it and reopen."
