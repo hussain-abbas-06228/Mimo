@@ -104,11 +104,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private func buildStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let img = NSImage(systemSymbolName: "captions.bubble.fill",
-                             accessibilityDescription: "LiveTranslate") {
+                             accessibilityDescription: "Mimo") {
             img.isTemplate = true
             item.button?.image = img
         } else {
-            item.button?.title = "🦜"
+            item.button?.title = "Mimo"
         }
 
         let menu = NSMenu()
@@ -127,7 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         startStopItem = startStop
 
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit LiveTranslate",
+        menu.addItem(NSMenuItem(title: "Quit Mimo",
                                 action: #selector(NSApplication.terminate(_:)),
                                 keyEquivalent: "q"))
 
@@ -145,7 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let appItem = NSMenuItem()
         mainMenu.addItem(appItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Quit LiveTranslate",
+        appMenu.addItem(withTitle: "Quit Mimo",
                         action: #selector(NSApplication.terminate(_:)),
                         keyEquivalent: "q")
         appItem.submenu = appMenu

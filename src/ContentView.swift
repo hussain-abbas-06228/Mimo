@@ -13,6 +13,29 @@ struct VisualEffectView: NSViewRepresentable {
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
+/// The Mimo mascot: two overlapping orbs (coral = German, blue = English)
+/// sharing one pair of eyes. Same geometry as scripts/make-icon.swift.
+struct MimoMark: View {
+    var width: CGFloat
+
+    var body: some View {
+        let u = width / 330  // design units: orbs 200 wide, centres 130 apart
+        ZStack {
+            Circle().fill(Color(red: 1, green: 0.44, blue: 0.35))
+                .frame(width: 200 * u).offset(x: -65 * u)
+            Circle().fill(Color(red: 0.27, green: 0.55, blue: 1).opacity(0.85))
+                .frame(width: 200 * u).offset(x: 65 * u)
+            HStack(spacing: 34 * u) {
+                Ellipse().frame(width: 42 * u, height: 52 * u)
+                Ellipse().frame(width: 42 * u, height: 52 * u)
+            }
+            .foregroundStyle(Color(red: 0.09, green: 0.09, blue: 0.16))
+            .offset(y: -22 * u)
+        }
+        .frame(width: width, height: 200 * u)
+    }
+}
+
 struct ContentView: View {
     @ObservedObject var controller: TranscriptionController
     @State private var bgOpacity: Double = 0.40
@@ -49,13 +72,26 @@ struct ContentView: View {
 
     // MARK: - Header
 
+    /// Full header when there's room; on narrow panels drop the app name and
+    /// opacity slider instead of letting SwiftUI wrap labels letter by letter.
     private var header: some View {
+        ViewThatFits(in: .horizontal) {
+            headerRow(compact: false)
+            headerRow(compact: true)
+        }
+    }
+
+    private func headerRow(compact: Bool) -> some View {
         HStack(spacing: 12) {
             HStack(spacing: 7) {
-                Text("🦜").font(.system(size: 15))
-                Text("LiveTranslate")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.92))
+                MimoMark(width: 26)
+                if !compact {
+                    Text("Mimo")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.92))
+                        .lineLimit(1)
+                        .fixedSize()
+                }
             }
 
             statusPill
@@ -78,15 +114,17 @@ struct ContentView: View {
             .frame(width: 86)
             .help("EN = English translation · DE = German transcript")
 
-            HStack(spacing: 5) {
-                Image(systemName: "circle.lefthalf.filled")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.45))
-                Slider(value: $bgOpacity, in: 0.0...0.85)
-                    .frame(width: 64)
-                    .controlSize(.mini)
+            if !compact {
+                HStack(spacing: 5) {
+                    Image(systemName: "circle.lefthalf.filled")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.45))
+                    Slider(value: $bgOpacity, in: 0.0...0.85)
+                        .frame(width: 64)
+                        .controlSize(.mini)
+                }
+                .help("Background opacity")
             }
-            .help("Background opacity")
 
             HStack(spacing: 1) {
                 controlButton(icon: "textformat.size.smaller", help: "Smaller text") {
@@ -132,6 +170,8 @@ struct ContentView: View {
             Text(statusLabel)
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.65))
+                .lineLimit(1)
+                .fixedSize()
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 3.5)
@@ -203,9 +243,7 @@ struct ContentView: View {
 
     private var emptyState: some View {
         VStack(spacing: 8) {
-            Text("🦜")
-                .font(.system(size: 34))
-                .opacity(0.9)
+            MimoMark(width: 58)
             Text(placeholderText)
                 .font(.system(size: 14, design: .rounded))
                 .foregroundStyle(.white.opacity(0.45))

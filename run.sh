@@ -1,4 +1,4 @@
 #!/bin/bash
 cd "$(dirname "$0")"
-[ -d build/LiveTranslate.app ] || ./build.sh
-open build/LiveTranslate.app
+[ -d build/Mimo.app ] || ./build.sh
+open build/Mimo.app

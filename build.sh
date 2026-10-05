@@ -1,8 +1,8 @@
 #!/bin/bash
-# Builds LiveTranslate.app from scratch.
+# Builds Mimo.app from scratch.
 # 1. Compiles whisper.cpp (static libs, Metal GPU) if not already built.
 # 2. Compiles the Swift app and links the libs.
-# 3. Assembles and ad-hoc signs build/LiveTranslate.app.
+# 3. Assembles and ad-hoc signs build/Mimo.app.
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT="$PWD"
@@ -38,7 +38,7 @@ if [ ! -f assets/AppIcon.icns ]; then
 fi
 
 # --- 2. Swift app -----------------------------------------------------------
-echo "==> Compiling LiveTranslate…"
+echo "==> Compiling Mimo…"
 mkdir -p build
 
 swiftc -O -swift-version 5 -target arm64-apple-macos14.0 \
@@ -54,14 +54,14 @@ swiftc -O -swift-version 5 -target arm64-apple-macos14.0 \
   -lc++ \
   -framework Accelerate -framework Metal -framework MetalKit \
   -framework ScreenCaptureKit -framework CoreMedia -framework CoreAudio \
-  -o build/LiveTranslate-bin
+  -o build/Mimo-bin
 
 # --- 3. App bundle ----------------------------------------------------------
-echo "==> Assembling LiveTranslate.app…"
-APP="build/LiveTranslate.app"
+echo "==> Assembling Mimo.app…"
+APP="build/Mimo.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp build/LiveTranslate-bin "$APP/Contents/MacOS/LiveTranslate"
+cp build/Mimo-bin "$APP/Contents/MacOS/Mimo"
 cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -69,10 +69,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key>               <string>LiveTranslate</string>
-  <key>CFBundleDisplayName</key>        <string>LiveTranslate</string>
-  <key>CFBundleIdentifier</key>         <string>io.github.hussain-abbas-06228.livetranslate</string>
-  <key>CFBundleExecutable</key>         <string>LiveTranslate</string>
+  <key>CFBundleName</key>               <string>Mimo</string>
+  <key>CFBundleDisplayName</key>        <string>Mimo</string>
+  <key>CFBundleIdentifier</key>         <string>io.github.hussain-abbas-06228.mimo</string>
+  <key>CFBundleExecutable</key>         <string>Mimo</string>
   <key>CFBundlePackageType</key>        <string>APPL</string>
   <key>CFBundleShortVersionString</key> <string>1.0</string>
   <key>CFBundleVersion</key>            <string>1</string>
@@ -80,7 +80,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key>    <true/>
   <key>CFBundleIconFile</key>           <string>AppIcon</string>
   <key>NSAudioCaptureUsageDescription</key>
-  <string>LiveTranslate listens to your Mac's audio output to translate German speech in real time.</string>
+  <string>Mimo listens to your Mac's audio output to translate German speech in real time.</string>
   <key>LTModelDir</key>                 <string>$ROOT/models</string>
 </dict>
 </plist>
@@ -92,7 +92,7 @@ codesign --force -s - "$APP"
 # granted Screen & System Audio Recording permission (macOS keeps showing the
 # toggle as ON but denies the new binary). Clear the stale entry so the app
 # asks fresh on next launch instead of failing silently.
-tccutil reset ScreenCapture io.github.hussain-abbas-06228.livetranslate >/dev/null 2>&1 || true
+tccutil reset ScreenCapture io.github.hussain-abbas-06228.mimo >/dev/null 2>&1 || true
 
 echo "==> Done: $APP"
 ls models/ggml-*.bin >/dev/null 2>&1 || echo "    No models yet — run scripts/download-model.sh first."

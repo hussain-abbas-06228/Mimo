@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/AppIcon.iconset/icon_256x256.png" width="128" alt="LiveTranslate icon">
+  <img src="assets/AppIcon.iconset/icon_256x256.png" width="128" alt="Mimo icon">
 </p>
 
-<h1 align="center">LiveTranslate</h1>
+<h1 align="center">Mimo</h1>
 
 <p align="center">
   Real-time German → English subtitles for <b>anything your Mac plays</b> —
@@ -12,11 +12,14 @@
 
 ---
 
-LiveTranslate is a small native macOS app that floats a subtitle panel above
+Mimo is a small native macOS app that floats a subtitle panel above
 every window (including full-screen meetings). It taps the system audio
 output, runs OpenAI's Whisper model on the GPU via
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp), and shows English
 text a few seconds after someone speaks German.
+
+The mascot is two overlapping orbs, coral for German and blue for English,
+sharing one pair of eyes: two languages, one understanding.
 
 ## Features
 
@@ -59,17 +62,17 @@ transcript and the buffer is cleared.
 ## Getting started
 
 ```bash
-git clone --recursive https://github.com/hussain-abbas-06228/LiveTranslate.git
-cd LiveTranslate
+git clone --recursive https://github.com/hussain-abbas-06228/Mimo.git
+cd Mimo
 
 scripts/download-model.sh   # downloads the two default models (~1.1 GB)
 ./build.sh                  # builds whisper.cpp (first time only) + the app
-./run.sh                    # launches build/LiveTranslate.app
+./run.sh                    # launches build/Mimo.app
 ```
 
 On first launch macOS asks for **Screen & System Audio Recording**
 permission — this is how the app hears your Mac's audio (video frames are
-discarded). Enable **LiveTranslate** under *System Settings → Privacy &
+discarded). Enable **Mimo** under *System Settings → Privacy &
 Security → Screen & System Audio Recording*, then relaunch.
 
 To check everything works, run `./test.sh` while the app is open: your Mac
@@ -123,13 +126,13 @@ The app is built with plain `swiftc` — no Xcode project needed.
 
 ## Troubleshooting
 
-- **Permission error in the panel** → enable LiveTranslate under *System
+- **Permission error in the panel** → enable Mimo under *System
   Settings → Privacy & Security → Screen & System Audio Recording*, then
   relaunch.
 - **Permission is on but it still fails** → the grant belongs to an older
   build (each rebuild changes the ad-hoc signature). `./build.sh` resets it
   automatically; otherwise run
-  `tccutil reset ScreenCapture io.github.hussain-abbas-06228.livetranslate` and relaunch.
+  `tccutil reset ScreenCapture io.github.hussain-abbas-06228.mimo` and relaunch.
 - **No text appears** → make sure the audio is playing on *this* Mac.
 - **"Whisper model not found"** → run `scripts/download-model.sh`.
 

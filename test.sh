@@ -1,6 +1,6 @@
 #!/bin/bash
 # Plays a few German sentences through your speakers using macOS text-to-speech.
-# With LiveTranslate running, you should see the English translation appear
+# With Mimo running, you should see the English translation appear
 # in the overlay within a few seconds.
 say -v Anna "Guten Morgen zusammen, schön dass alle da sind."
 sleep 1

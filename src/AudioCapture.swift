@@ -6,7 +6,7 @@ import CoreMedia
 /// using ScreenCaptureKit, delivered as 16 kHz mono Float32 — exactly what Whisper expects.
 final class AudioCaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
     private var stream: SCStream?
-    private let sampleQueue = DispatchQueue(label: "livetranslate.audio")
+    private let sampleQueue = DispatchQueue(label: "mimo.audio")
 
     var onSamples: (([Float]) -> Void)?
     var onError: ((String) -> Void)?
@@ -17,7 +17,7 @@ final class AudioCaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
         let content = try await SCShareableContent.excludingDesktopWindows(
             false, onScreenWindowsOnly: true)
         guard let display = content.displays.first else {
-            throw NSError(domain: "LiveTranslate", code: 1, userInfo: [
+            throw NSError(domain: "Mimo", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "No display found to capture audio from."
             ])
         }

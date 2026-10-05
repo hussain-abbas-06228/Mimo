@@ -1,10 +1,15 @@
-// Generates the LiveTranslate app icon: parrot mascot on an indigo→violet
-// gradient squircle with two "subtitle" bars. Writes a full .iconset folder.
+// Generates the Mimo app icon: two overlapping orbs (coral = German,
+// blue = English) sharing one pair of eyes, on a dark squircle.
+// Writes a full .iconset folder.
 // Usage: swift scripts/make-icon.swift assets/AppIcon.iconset
 import AppKit
 
 let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "AppIcon.iconset"
 try? FileManager.default.createDirectory(atPath: outDir, withIntermediateDirectories: true)
+
+func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> NSColor {
+    NSColor(calibratedRed: r / 255, green: g / 255, blue: b / 255, alpha: a)
+}
 
 func render(px: Int) -> NSBitmapImageRep {
     let rep = NSBitmapImageRep(
@@ -17,53 +22,33 @@ func render(px: Int) -> NSBitmapImageRep {
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
 
     let f = CGFloat(px) / 1024.0
+    let c = CGFloat(px) / 2
 
-    // Squircle background
+    // Dark squircle background
     let inset = 90.0 * f
     let rect = NSRect(x: inset, y: inset,
                       width: CGFloat(px) - inset * 2, height: CGFloat(px) - inset * 2)
     let squircle = NSBezierPath(roundedRect: rect, xRadius: 190 * f, yRadius: 190 * f)
+    NSGradient(colors: [rgb(38, 38, 46), rgb(18, 18, 23)])!.draw(in: squircle, angle: 270)
 
-    let gradient = NSGradient(colors: [
-        NSColor(calibratedRed: 0.32, green: 0.45, blue: 0.97, alpha: 1.0),  // blue (top)
-        NSColor(calibratedRed: 0.47, green: 0.28, blue: 0.93, alpha: 1.0),  // violet (bottom)
-    ])!
-    gradient.draw(in: squircle, angle: 270)
-
-    // Soft top highlight for depth
-    squircle.addClip()
-    let gloss = NSGradient(colors: [
-        NSColor.white.withAlphaComponent(0.20),
-        NSColor.white.withAlphaComponent(0.0),
-    ])!
-    gloss.draw(in: NSRect(x: rect.minX, y: rect.midY, width: rect.width, height: rect.height / 2),
-               angle: 270)
-
-    // Parrot mascot
-    let emoji = "🦜"
-    let font = NSFont.systemFont(ofSize: 470 * f)
-    let attr = NSAttributedString(string: emoji, attributes: [.font: font])
-    let size = attr.size()
-    attr.draw(at: NSPoint(x: (CGFloat(px) - size.width) / 2,
-                          y: CGFloat(px) * 0.345))
-
-    // Subtitle bars
-    func bar(width: CGFloat, centerY: CGFloat, alpha: CGFloat) {
-        let h = 58 * f
-        let r = NSRect(x: (CGFloat(px) - width) / 2, y: centerY - h / 2, width: width, height: h)
-        NSColor.white.withAlphaComponent(alpha).setFill()
-        NSBezierPath(roundedRect: r, xRadius: h / 2, yRadius: h / 2).fill()
+    // Mascot, in design units (orbs 200 wide, centres 130 apart) scaled to the tile
+    let u = 2.1 * f
+    func oval(_ cx: CGFloat, _ cy: CGFloat, _ w: CGFloat, _ h: CGFloat, _ color: NSColor) {
+        color.setFill()
+        NSBezierPath(ovalIn: NSRect(x: c + (cx - w / 2) * u, y: c + (cy - h / 2) * u,
+                                    width: w * u, height: h * u)).fill()
     }
-    bar(width: 400 * f, centerY: 268 * f, alpha: 0.95)
-    bar(width: 250 * f, centerY: 180 * f, alpha: 0.55)
+    oval(-65, 0, 200, 200, rgb(255, 112, 90))        // German orb
+    oval(65, 0, 200, 200, rgb(70, 140, 255, 0.85))   // English orb
+    oval(-38, 22, 42, 52, rgb(24, 22, 40))           // eyes
+    oval(38, 22, 42, 52, rgb(24, 22, 40))
 
     NSGraphicsContext.restoreGraphicsState()
     return rep
 }
 
 func write(px: Int, name: String) {
-    let rep = render(px: px)
-    let data = rep.representation(using: .png, properties: [:])!
+    let data = render(px: px).representation(using: .png, properties: [:])!
     try! data.write(to: URL(fileURLWithPath: "\(outDir)/\(name).png"))
 }
 

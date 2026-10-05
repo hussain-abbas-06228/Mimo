@@ -34,7 +34,7 @@ final class TranscriptionController: ObservableObject, @unchecked Sendable {
     private var buffer: [Float] = []
     private let bufferLock = NSLock()
     private var timer: DispatchSourceTimer?
-    private let inferenceQueue = DispatchQueue(label: "livetranslate.inference", qos: .userInitiated)
+    private let inferenceQueue = DispatchQueue(label: "mimo.inference", qos: .userInitiated)
     private var inferenceBusy = false
 
     private let sampleRate = 16000
@@ -209,7 +209,7 @@ final class TranscriptionController: ObservableObject, @unchecked Sendable {
     private static func friendlyCaptureError(_ error: Error) -> String {
         let ns = error as NSError
         if ns.domain == "com.apple.ScreenCaptureKit.SCStreamErrorDomain" || ns.code == -3801 {
-            return "Screen & audio recording permission needed. Open System Settings → Privacy & Security → Screen & System Audio Recording, enable LiveTranslate, then press Start again."
+            return "Screen & audio recording permission needed. Open System Settings → Privacy & Security → Screen & System Audio Recording, enable Mimo, then press Start again."
         }
         return ns.localizedDescription
     }
