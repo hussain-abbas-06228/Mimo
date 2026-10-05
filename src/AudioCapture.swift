@@ -12,8 +12,12 @@ final class AudioCaptureManager: NSObject, SCStreamOutput, SCStreamDelegate {
     var onError: ((String) -> Void)?
 
     func start() async throws {
-        // This call triggers the macOS "Screen & System Audio Recording" permission
-        // prompt the first time the app runs.
+        // Ask explicitly: this registers the app in System Settings → Screen & System
+        // Audio Recording and shows the prompt. Relying on SCShareableContent alone
+        // sometimes fails without ever listing the app.
+        if !CGPreflightScreenCaptureAccess() {
+            CGRequestScreenCaptureAccess()
+        }
         let content = try await SCShareableContent.excludingDesktopWindows(
             false, onScreenWindowsOnly: true)
         guard let display = content.displays.first else {
