@@ -111,14 +111,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     // MARK: - Menu bar status item
 
     private func buildStatusItem() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        if let img = NSImage(systemSymbolName: "captions.bubble.fill",
-                             accessibilityDescription: "Mimo") {
-            img.isTemplate = true
-            item.button?.image = img
-        } else {
-            item.button?.title = "Mimo"
-        }
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.button?.image = Self.statusIcon()
+        item.button?.setAccessibilityLabel("Mimo")
 
         let menu = NSMenu()
         menu.delegate = self
@@ -148,6 +143,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
         item.menu = menu
         statusItem = item
+    }
+
+    /// Menu-bar version of the mascot: two overlapping orbs with cut-out eyes,
+    /// drawn as a template image so macOS tints it for light/dark menu bars.
+    private static func statusIcon() -> NSImage {
+        let img = NSImage(size: NSSize(width: 22, height: 16), flipped: false) { r in
+            let d: CGFloat = 13, y = (r.height - d) / 2
+            NSColor.black.withAlphaComponent(0.55).setFill()
+            NSBezierPath(ovalIn: NSRect(x: 1.5, y: y, width: d, height: d)).fill()
+            NSColor.black.setFill()
+            NSBezierPath(ovalIn: NSRect(x: r.width - d - 1.5, y: y, width: d, height: d)).fill()
+            NSGraphicsContext.current?.compositingOperation = .destinationOut
+            for x in [r.midX - 2.6, r.midX + 2.6] {
+                NSBezierPath(ovalIn: NSRect(x: x - 1.25, y: r.midY - 0.6, width: 2.5, height: 3.4)).fill()
+            }
+            return true
+        }
+        img.isTemplate = true
+        return img
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {

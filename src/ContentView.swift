@@ -14,6 +14,19 @@ struct VisualEffectView: NSViewRepresentable {
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
+/// Liquid Glass behind a control on macOS 26+, the old subtle fill before that.
+struct ControlGlass<S: Shape>: ViewModifier {
+    let shape: S
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            content.glassEffect(.regular.interactive(), in: shape)
+        } else {
+            content.background(shape.fill(Color.white.opacity(0.07)))
+        }
+    }
+}
+
 /// The Mimo mascot: two overlapping orbs (coral = spoken language, blue = English)
 /// sharing one pair of eyes. Same geometry as scripts/make-icon.swift.
 struct MimoMark: View {
@@ -128,6 +141,9 @@ struct ContentView: View {
                         .frame(width: 64)
                         .controlSize(.mini)
                 }
+                .padding(.horizontal, 8)
+                .frame(height: 22)
+                .modifier(ControlGlass(shape: Capsule()))
                 .help("Background opacity")
             }
 
@@ -191,6 +207,8 @@ struct ContentView: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
+        .frame(width: 28, height: 22)
+        .modifier(ControlGlass(shape: RoundedRectangle(cornerRadius: 6, style: .continuous)))
         .help("Spoken language: \(controller.language == "auto" ? "auto-detect" : Self.name(of: controller.language))")
     }
 
@@ -233,10 +251,8 @@ struct ContentView: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(tint.opacity(tint == .white ? 0.55 : 0.9))
                 .frame(width: 24, height: 22)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.white.opacity(0.07))
-                )
+                .contentShape(Rectangle())
+                .modifier(ControlGlass(shape: RoundedRectangle(cornerRadius: 6, style: .continuous)))
         }
         .buttonStyle(.plain)
         .help(help)

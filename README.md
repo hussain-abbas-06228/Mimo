@@ -35,7 +35,7 @@ sharing one pair of eyes: two languages, one understanding.
 - **Global shortcut** — ⌥⌘M shows/hides the subtitles from any app; record
   your own combination from the menu bar.
 - **Copy or save the transcript** — keep meeting notes after the call.
-- **Always-on-top overlay** — frosted-glass panel that doesn't steal focus
+- **Always-on-top overlay** — frosted-glass panel with Liquid Glass controls (macOS 26+) that doesn't steal focus
   from your meeting; drag, resize, adjust opacity and text size.
 - **Menu-bar control** — show/hide subtitles and start/pause listening from
   the menu bar; closing the panel hides it instead of quitting.
@@ -102,7 +102,7 @@ in the overlay.
 | ⧉ / ⤓ | Copy the whole transcript / save it as a text file |
 | 🗑 | Clear transcript |
 | ⌄ or red close button | Hide the panel (app keeps running) |
-| Menu-bar 💬 icon | Show/hide subtitles, start/pause, change shortcut, quit |
+| Menu-bar Mimo icon (two orbs) | Show/hide subtitles, start/pause, change shortcut, quit |
 | ⌥⌘M (anywhere) | Show/hide the subtitles; change it via the menu-bar icon → *Change Show/Hide Shortcut…* |
 
 Mimo remembers your opacity, text size, language, EN/original choice, shortcut and the panel's position
