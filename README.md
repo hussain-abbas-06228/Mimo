@@ -87,11 +87,14 @@ in the overlay.
 | EN / DE | English translation / German transcript |
 | ◐ slider | Background opacity |
 | A− / A+ | Text size |
+| ⤓ | Save the transcript as a text file |
 | 🗑 | Clear transcript |
 | ⌄ or red close button | Hide the panel (app keeps running) |
 | Menu-bar 💬 icon | Show/hide subtitles, start/pause, quit |
 
-Expect a delay of about 2–4 seconds — normal for speech translation.
+Mimo remembers your opacity, text size, EN/DE choice and the panel's position
+and size between launches. Expect a delay of about 2–4 seconds, which is normal
+for speech translation.
 
 ## Models
 
@@ -129,9 +132,12 @@ The app is built with plain `swiftc` — no Xcode project needed.
 - **Permission error in the panel** → enable Mimo under *System
   Settings → Privacy & Security → Screen & System Audio Recording*, then
   relaunch.
-- **Permission is on but it still fails** → the grant belongs to an older
-  build (each rebuild changes the ad-hoc signature). `./build.sh` resets it
-  automatically; otherwise run
+- **Permission is on but it still fails** → the grant belongs to a differently
+  signed build. `./build.sh` signs with a private local certificate
+  ("Mimo Local Signing", created once in your login keychain by
+  `scripts/make-signing-cert.sh`) so the permission survives rebuilds. If that
+  certificate can't be used, it falls back to ad-hoc signing and macOS asks
+  again after each build. To start over, run
   `tccutil reset ScreenCapture io.github.hussain-abbas-06228.mimo` and relaunch.
 - **No text appears** → make sure the audio is playing on *this* Mac.
 - **"Whisper model not found"** → run `scripts/download-model.sh`.

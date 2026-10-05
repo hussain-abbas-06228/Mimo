@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 /// Frosted-glass blur behind the panel content.
 struct VisualEffectView: NSViewRepresentable {
@@ -38,8 +39,8 @@ struct MimoMark: View {
 
 struct ContentView: View {
     @ObservedObject var controller: TranscriptionController
-    @State private var bgOpacity: Double = 0.40
-    @State private var fontSize: Double = 21
+    @AppStorage("bgOpacity") private var bgOpacity: Double = 0.40
+    @AppStorage("fontSize") private var fontSize: Double = 21
 
     var body: some View {
         ZStack {
@@ -135,6 +136,10 @@ struct ContentView: View {
                 }
             }
 
+            controlButton(icon: "square.and.arrow.down", help: "Save transcript as a text file") {
+                saveTranscript()
+            }
+
             controlButton(icon: "trash", help: "Clear transcript") {
                 controller.clear()
             }
@@ -142,6 +147,24 @@ struct ContentView: View {
             controlButton(icon: "chevron.down", help: "Hide — reopen from the 💬 icon in the menu bar") {
                 NotificationCenter.default.post(name: .ltHidePanel, object: nil)
             }
+        }
+    }
+
+    private func saveTranscript() {
+        let lines = controller.committed + (controller.partial.isEmpty ? [] : [controller.partial])
+        guard !lines.isEmpty else { NSSound.beep(); return }
+
+        let stamp = DateFormatter()
+        stamp.dateFormat = "yyyy-MM-dd HH.mm"
+        let save = NSSavePanel()
+        save.allowedContentTypes = [.plainText]
+        save.nameFieldStringValue = "Mimo transcript \(stamp.string(from: Date())).txt"
+        NSApp.activate(ignoringOtherApps: true)  // the overlay never activates the app itself
+        guard save.runModal() == .OK, let url = save.url else { return }
+        do {
+            try lines.joined(separator: "\n\n").write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            NSAlert(error: error).runModal()
         }
     }
 

@@ -22,7 +22,10 @@ final class TranscriptionController: ObservableObject, @unchecked Sendable {
     @Published var committed: [String] = []
     @Published var partial: String = ""
     @Published var status: Status = .idle
-    @Published var translateToEnglish: Bool = true
+    @Published var translateToEnglish: Bool =
+        UserDefaults.standard.object(forKey: "translateToEnglish") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(translateToEnglish, forKey: "translateToEnglish") }
+    }
     @Published var isRunning: Bool = false
 
     private let capture = AudioCaptureManager()

@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let panel = OverlayPanel(contentRect: rect)
         panel.contentView = NSHostingView(rootView: ContentView(controller: controller))
         panel.delegate = self
+        panel.setFrameAutosaveName("MimoPanel")  // restores and remembers position/size
         panel.orderFrontRegardless()
         self.panel = panel
 

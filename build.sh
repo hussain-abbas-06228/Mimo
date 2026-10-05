@@ -86,16 +86,19 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign --force -s - "$APP"
-
-# Rebuilding changes the app's code signature, which invalidates any previously
-# granted Screen & System Audio Recording permission (macOS keeps showing the
-# toggle as ON but denies the new binary). Clear the stale entry so the app
-# asks fresh on next launch instead of failing silently.
-tccutil reset ScreenCapture io.github.hussain-abbas-06228.mimo >/dev/null 2>&1 || true
+# Sign with a stable local certificate so macOS keeps the Screen & System Audio
+# Recording permission across rebuilds. If that's unavailable, fall back to an
+# ad-hoc signature — which changes on every build, so the old permission entry
+# is cleared and the app asks again instead of failing silently.
+if scripts/make-signing-cert.sh >/dev/null &&
+   codesign --force -s "Mimo Local Signing" "$APP" 2>/dev/null; then
+  echo "==> Signed with \"Mimo Local Signing\" (permission survives rebuilds)"
+else
+  codesign --force -s - "$APP"
+  tccutil reset ScreenCapture io.github.hussain-abbas-06228.mimo >/dev/null 2>&1 || true
+  echo "==> Ad-hoc signed; macOS will ask for the recording permission again"
+fi
 
 echo "==> Done: $APP"
 ls models/ggml-*.bin >/dev/null 2>&1 || echo "    No models yet — run scripts/download-model.sh first."
 echo "    Launch with: open \"$APP\"   (or ./run.sh)"
-echo "    NOTE: after a rebuild, macOS will ask for the Screen & System Audio"
-echo "    Recording permission again — this is expected. Enable it and reopen."
