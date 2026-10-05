@@ -21,7 +21,7 @@ final class OverlayPanel: NSPanel {
         hasShadow = true
         hidesOnDeactivate = false
         animationBehavior = .utilityWindow
-        minSize = NSSize(width: 480, height: 140)
+        minSize = NSSize(width: 560, height: 140)
         standardWindowButton(.miniaturizeButton)?.isHidden = true
         standardWindowButton(.zoomButton)?.isHidden = true
     }

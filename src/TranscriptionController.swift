@@ -24,9 +24,32 @@ final class TranscriptionController: ObservableObject, @unchecked Sendable {
     @Published var status: Status = .idle
     @Published var translateToEnglish: Bool =
         UserDefaults.standard.object(forKey: "translateToEnglish") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(translateToEnglish, forKey: "translateToEnglish") }
+        didSet {
+            UserDefaults.standard.set(translateToEnglish, forKey: "translateToEnglish")
+            syncSettings()
+        }
+    }
+    /// Spoken language code ("de", "fr", …) or "auto" to let Whisper detect it.
+    @Published var language: String = UserDefaults.standard.string(forKey: "language") ?? "de" {
+        didSet {
+            UserDefaults.standard.set(language, forKey: "language")
+            syncSettings()
+        }
+    }
+
+    /// Copy of the settings for the inference queue, guarded by bufferLock. The
+    /// queue must never block on the main thread: shutdown() waits for the queue
+    /// from the main thread, so a main.sync there would deadlock on quit.
+    private var settings = (translate: true, language: "de")
+
+    private func syncSettings() {
+        bufferLock.lock()
+        settings = (translateToEnglish, language)
+        bufferLock.unlock()
     }
     @Published var isRunning: Bool = false
+    /// Short message shown at the top of the panel (e.g. while recording a shortcut).
+    @Published var notice: String?
 
     private let capture = AudioCaptureManager()
     private let translateModelPath: String
@@ -50,6 +73,7 @@ final class TranscriptionController: ObservableObject, @unchecked Sendable {
     init(translateModelPath: String, transcribeModelPath: String) {
         self.translateModelPath = translateModelPath
         self.transcribeModelPath = transcribeModelPath
+        settings = (translateToEnglish, language)
 
         capture.onSamples = { [weak self] samples in
             guard let self else { return }
@@ -132,6 +156,13 @@ final class TranscriptionController: ObservableObject, @unchecked Sendable {
         }
     }
 
+    /// Frees the Whisper models. Must run before the app exits: ggml aborts
+    /// (crash on quit) if GPU resources are still allocated at exit.
+    func shutdown() {
+        stop()
+        inferenceQueue.sync { engines.removeAll() }  // waits for any running inference
+    }
+
     func clear() {
         committed.removeAll()
         partial = ""
@@ -149,12 +180,12 @@ final class TranscriptionController: ObservableObject, @unchecked Sendable {
 
     private func tick() {
         guard !inferenceBusy else { return }
-        let translate = DispatchQueue.main.sync { translateToEnglish }
-        guard let engine = engineFor(translate: translate) else { return }
-
         bufferLock.lock()
+        let (translate, language) = settings
         let window = buffer
         bufferLock.unlock()
+
+        guard let engine = engineFor(translate: translate) else { return }
 
         guard window.count >= minSamples else { return }
 
@@ -175,7 +206,7 @@ final class TranscriptionController: ObservableObject, @unchecked Sendable {
         }
 
         inferenceBusy = true
-        let segments = engine.run(samples: window, translate: translate)
+        let segments = engine.run(samples: window, translate: translate, language: language)
         inferenceBusy = false
 
         let step = plan(segments: segments, windowCount: window.count, trailingSilent: trailingSilent)

@@ -79,7 +79,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key>    <true/>
   <key>CFBundleIconFile</key>           <string>AppIcon</string>
   <key>NSAudioCaptureUsageDescription</key>
-  <string>Mimo listens to your Mac's audio output to translate German speech in real time.</string>
+  <string>Mimo listens to your Mac's audio output to subtitle and translate speech in real time.</string>
   <key>LTModelDir</key>                 <string>$ROOT/models</string>
 </dict>
 </plist>

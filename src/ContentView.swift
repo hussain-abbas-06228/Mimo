@@ -14,7 +14,7 @@ struct VisualEffectView: NSViewRepresentable {
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
-/// The Mimo mascot: two overlapping orbs (coral = German, blue = English)
+/// The Mimo mascot: two overlapping orbs (coral = spoken language, blue = English)
 /// sharing one pair of eyes. Same geometry as scripts/make-icon.swift.
 struct MimoMark: View {
     var width: CGFloat
@@ -107,13 +107,17 @@ struct ContentView: View {
                 controller.isRunning ? controller.stop() : controller.start()
             }
 
-            Picker("", selection: $controller.translateToEnglish) {
-                Text("EN").tag(true)
-                Text("DE").tag(false)
+            HStack(spacing: 4) {
+                languageMenu
+
+                Picker("", selection: $controller.translateToEnglish) {
+                    Text("EN").tag(true)
+                    Text(originalLabel).tag(false)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 92)
+                .help("EN = English translation · \(originalLabel) = original-language transcript")
             }
-            .pickerStyle(.segmented)
-            .frame(width: 86)
-            .help("EN = English translation · DE = German transcript")
 
             if !compact {
                 HStack(spacing: 5) {
@@ -136,23 +140,77 @@ struct ContentView: View {
                 }
             }
 
-            controlButton(icon: "square.and.arrow.down", help: "Save transcript as a text file") {
-                saveTranscript()
+            HStack(spacing: 1) {
+                controlButton(icon: "doc.on.doc", help: "Copy the whole transcript") {
+                    copyTranscript()
+                }
+                controlButton(icon: "square.and.arrow.down", help: "Save transcript as a text file") {
+                    saveTranscript()
+                }
             }
 
             controlButton(icon: "trash", help: "Clear transcript") {
                 controller.clear()
             }
 
-            controlButton(icon: "chevron.down", help: "Hide — reopen from the 💬 icon in the menu bar") {
+            controlButton(icon: "chevron.down", help: "Hide — bring it back with your shortcut (⌥⌘M by default) or the menu-bar icon") {
                 NotificationCenter.default.post(name: .ltHidePanel, object: nil)
             }
         }
     }
 
-    private func saveTranscript() {
+    // MARK: - Language
+
+    /// Languages offered besides auto-detect; Whisper understands ~100, these are the common ones.
+    private static let languages = [
+        "ar", "zh", "nl", "fr", "de", "hi", "it", "ja", "ko", "pl",
+        "pt", "ru", "es", "sv", "tr", "uk",
+    ].sorted { name(of: $0) < name(of: $1) }
+
+    private static func name(of code: String) -> String {
+        Locale.current.localizedString(forLanguageCode: code) ?? code
+    }
+
+    private var originalLabel: String {
+        controller.language == "auto" ? "Orig" : controller.language.uppercased()
+    }
+
+    private var languageMenu: some View {
+        Menu {
+            Picker("Spoken language", selection: $controller.language) {
+                Text("Auto-detect").tag("auto")
+                Divider()
+                ForEach(Self.languages, id: \.self) { code in
+                    Text(Self.name(of: code)).tag(code)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: "globe")
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Spoken language: \(controller.language == "auto" ? "auto-detect" : Self.name(of: controller.language))")
+    }
+
+    // MARK: - Copy / save
+
+    /// Whole transcript including the live line, or nil (with a beep) if empty.
+    private var transcriptText: String? {
         let lines = controller.committed + (controller.partial.isEmpty ? [] : [controller.partial])
-        guard !lines.isEmpty else { NSSound.beep(); return }
+        guard !lines.isEmpty else { NSSound.beep(); return nil }
+        return lines.joined(separator: "\n\n")
+    }
+
+    private func copyTranscript() {
+        guard let text = transcriptText else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    private func saveTranscript() {
+        guard let text = transcriptText else { return }
 
         let stamp = DateFormatter()
         stamp.dateFormat = "yyyy-MM-dd HH.mm"
@@ -162,7 +220,7 @@ struct ContentView: View {
         NSApp.activate(ignoringOtherApps: true)  // the overlay never activates the app itself
         guard save.runModal() == .OK, let url = save.url else { return }
         do {
-            try lines.joined(separator: "\n\n").write(to: url, atomically: true, encoding: .utf8)
+            try text.write(to: url, atomically: true, encoding: .utf8)
         } catch {
             NSAlert(error: error).runModal()
         }
@@ -226,6 +284,9 @@ struct ContentView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
+                    if let notice = controller.notice {
+                        noticeView(notice)
+                    }
                     if case .error(let message) = controller.status {
                         errorView(message)
                     } else if controller.committed.isEmpty && controller.partial.isEmpty {
@@ -276,6 +337,22 @@ struct ContentView: View {
         .padding(.top, 14)
     }
 
+    private func noticeView(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "keyboard")
+                .foregroundStyle(.white.opacity(0.8))
+            Text(message)
+                .font(.system(size: 13, design: .rounded))
+                .foregroundStyle(.white.opacity(0.9))
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.blue.opacity(0.25))
+        )
+    }
+
     private func errorView(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -296,7 +373,10 @@ struct ContentView: View {
         switch controller.status {
         case .loadingModel: return "Warming up the translator…"
         case .starting: return "Connecting to your Mac's audio…"
-        case .live: return "Listening — German speech from any app\nwill appear here in English."
+        case .live:
+            return controller.translateToEnglish
+                ? "Listening — speech from any app\nwill appear here in English."
+                : "Listening — speech from any app\nwill appear here as a transcript."
         default: return "Press ▶ to start live translation."
         }
     }

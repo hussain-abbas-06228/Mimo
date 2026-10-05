@@ -4,7 +4,6 @@ import Foundation
 /// Loads a ggml model once and runs inference on chunks of 16 kHz mono Float32 audio.
 final class WhisperEngine {
     private var ctx: OpaquePointer?
-    private let language = strdup("de")
 
     init?(modelPath: String) {
         var cparams = whisper_context_default_params()
@@ -17,7 +16,6 @@ final class WhisperEngine {
 
     deinit {
         if let ctx { whisper_free(ctx) }
-        free(language)
     }
 
     /// One phrase/sentence as Whisper split it. `start` is in samples from the
@@ -28,8 +26,9 @@ final class WhisperEngine {
     }
 
     /// Runs Whisper over the given samples.
-    /// - translate: true → output English translation, false → German transcript.
-    func run(samples: [Float], translate: Bool) -> [Segment] {
+    /// - translate: true → output English translation, false → transcript in the spoken language.
+    /// - language: spoken language code ("de", "fr", …) or "auto" to detect it.
+    func run(samples: [Float], translate: Bool, language: String) -> [Segment] {
         guard let ctx, samples.count >= 16000 else { return [] }
 
         var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
@@ -38,7 +37,6 @@ final class WhisperEngine {
         params.print_timestamps = false
         params.print_special = false
         params.translate = translate
-        params.language = UnsafePointer(language)
         params.n_threads = 4
         params.no_context = true
         params.single_segment = false
@@ -46,8 +44,11 @@ final class WhisperEngine {
         params.suppress_nst = true    // no "(music)"-style non-speech tokens
         params.no_timestamps = false  // we need segment start times to split at sentence ends
 
-        let status = samples.withUnsafeBufferPointer { buf in
-            whisper_full(ctx, params, buf.baseAddress, Int32(buf.count))
+        let status = language.withCString { lang in
+            params.language = lang
+            return samples.withUnsafeBufferPointer { buf in
+                whisper_full(ctx, params, buf.baseAddress, Int32(buf.count))
+            }
         }
         guard status == 0 else { return [] }
 

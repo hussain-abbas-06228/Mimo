@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import SwiftUI
 
 extension Notification.Name {
@@ -11,10 +12,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private var statusItem: NSStatusItem?
     private var showHideItem: NSMenuItem?
     private var startStopItem: NSMenuItem?
+    private var shortcutItem: NSMenuItem?
+    private var hotKey: HotKey?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
         buildStatusItem()
+        registerHotKey(Self.savedCombo)
 
         guard let models = Self.findModels() else {
             let alert = NSAlert()
@@ -89,6 +93,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         return false
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        controller?.shutdown()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }
@@ -127,6 +135,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         menu.addItem(startStop)
         startStopItem = startStop
 
+        let shortcut = NSMenuItem(title: "Change Show/Hide Shortcut…",
+                                  action: #selector(recordShortcut), keyEquivalent: "")
+        shortcut.target = self
+        menu.addItem(shortcut)
+        shortcutItem = shortcut
+
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Mimo",
                                 action: #selector(NSApplication.terminate(_:)),
@@ -139,6 +153,87 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func menuNeedsUpdate(_ menu: NSMenu) {
         showHideItem?.title = (panel?.isVisible == true) ? "Hide Subtitles" : "Show Subtitles"
         startStopItem?.title = (controller?.isRunning == true) ? "Pause Listening" : "Start Listening"
+    }
+
+    // MARK: - Global show/hide shortcut
+
+    private static var savedCombo: HotKey.Combo {
+        UserDefaults.standard.data(forKey: "hotKey")
+            .flatMap { try? JSONDecoder().decode(HotKey.Combo.self, from: $0) } ?? .standard
+    }
+
+    /// Registers `combo` as the show/hide shortcut. Returns false if another app owns it.
+    @discardableResult
+    private func registerHotKey(_ combo: HotKey.Combo) -> Bool {
+        hotKey = nil  // release the old combination first so it can be re-registered
+        hotKey = HotKey(combo) { [weak self] in self?.toggleVisibility() }
+        let ok = hotKey != nil
+        shortcutItem?.title = ok
+            ? "Change Show/Hide Shortcut (\(combo.display))…"
+            : "Change Show/Hide Shortcut (\(combo.display) is taken)…"
+        return ok
+    }
+
+    private var recordMonitor: Any?
+    private var resignObserver: NSObjectProtocol?
+
+    /// Records the next key combination pressed as the new shortcut. The prompt
+    /// lives in the overlay panel, which can take key presses without
+    /// activating the app — a modal alert stays hidden (and freezes the app)
+    /// while another app such as Teams is in front.
+    @objc private func recordShortcut() {
+        // Start after the status menu has closed, or the panel can't become key.
+        DispatchQueue.main.async { self.beginRecording() }
+    }
+
+    private func beginRecording() {
+        guard let panel, let controller, recordMonitor == nil else { return }
+        let current = Self.savedCombo
+        hotKey = nil  // so pressing the current combination can be recorded too
+
+        showPanel()
+        panel.makeKey()
+        controller.notice = "Press the new show/hide shortcut: ⌘, ⌥ or ⌃ plus a key. " +
+            "Esc cancels (current: \(current.display))."
+
+        recordMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == UInt16(kVK_Escape) {
+                self?.finishRecording(nil, current: current)
+            } else if let combo = HotKey.Combo(event: event) {
+                self?.finishRecording(combo, current: current)
+            }
+            return nil  // swallow keys while recording
+        }
+        // Clicking elsewhere cancels, so the shortcut is never left unregistered.
+        resignObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: panel, queue: .main
+        ) { [weak self] _ in self?.finishRecording(nil, current: current) }
+    }
+
+    private func finishRecording(_ combo: HotKey.Combo?, current: HotKey.Combo) {
+        if let recordMonitor { NSEvent.removeMonitor(recordMonitor) }
+        if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
+        recordMonitor = nil
+        resignObserver = nil
+
+        var message: String?
+        if let combo, combo != current {
+            if registerHotKey(combo) {
+                UserDefaults.standard.set(try? JSONEncoder().encode(combo), forKey: "hotKey")
+                message = "Show/hide shortcut is now \(combo.display)."
+            } else {
+                registerHotKey(current)
+                message = "\(combo.display) is already used by another app. Kept \(current.display)."
+            }
+        } else {
+            registerHotKey(current)
+        }
+        controller?.notice = message
+        if let message {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                if self?.controller?.notice == message { self?.controller?.notice = nil }
+            }
+        }
     }
 
     private func buildMenu() {

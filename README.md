@@ -5,7 +5,8 @@
 <h1 align="center">Mimo</h1>
 
 <p align="center">
-  Real-time German → English subtitles for <b>anything your Mac plays</b> —
+  Real-time English subtitles for <b>anything your Mac plays</b>, in German,
+  French, Spanish or ~100 other languages —
   Microsoft Teams, Zoom, YouTube, TV streams.<br>
   100% local · no API keys · no audio ever leaves your Mac.
 </p>
@@ -16,9 +17,10 @@ Mimo is a small native macOS app that floats a subtitle panel above
 every window (including full-screen meetings). It taps the system audio
 output, runs OpenAI's Whisper model on the GPU via
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp), and shows English
-text a few seconds after someone speaks German.
+text a few seconds after someone speaks. It was built for German meetings,
+which remain the default, but any language Whisper knows works.
 
-The mascot is two overlapping orbs, coral for German and blue for English,
+The mascot is two overlapping orbs, coral for the spoken language and blue for English,
 sharing one pair of eyes: two languages, one understanding.
 
 ## Features
@@ -26,7 +28,13 @@ sharing one pair of eyes: two languages, one understanding.
 - **Works with any app** — captures system audio, so there's nothing to
   configure per app.
 - **Fully offline** — Whisper runs on-device with Metal acceleration.
-- **EN / DE toggle** — live English translation, or the raw German transcript.
+- **Any language → English** — pick the spoken language from the 🌐 menu or
+  let Mimo auto-detect it.
+- **EN / original toggle** — live English translation, or a transcript in the
+  spoken language.
+- **Global shortcut** — ⌥⌘M shows/hides the subtitles from any app; record
+  your own combination from the menu bar.
+- **Copy or save the transcript** — keep meeting notes after the call.
 - **Always-on-top overlay** — frosted-glass panel that doesn't steal focus
   from your meeting; drag, resize, adjust opacity and text size.
 - **Menu-bar control** — show/hide subtitles and start/pause listening from
@@ -40,9 +48,9 @@ sharing one pair of eyes: two languages, one understanding.
 Any app's audio ──▶ ScreenCaptureKit (system-audio tap, 16 kHz mono)
                         │
                         ▼
-              whisper.cpp (Metal GPU), German speech
+              whisper.cpp (Metal GPU), speech in any language
                  ├─ EN mode: translate → English
-                 └─ DE mode: transcribe → German
+                 └─ original mode: transcribe in the spoken language
                         │
                         ▼
               Floating always-on-top overlay panel
@@ -87,15 +95,17 @@ in the overlay.
 | Control | What it does |
 |---|---|
 | ▶ / ⏸ | Start / pause listening |
-| EN / DE | English translation / German transcript |
+| 🌐 | Spoken language (Auto-detect or a specific language) |
+| EN / DE | English translation / transcript in the spoken language (the second label shows the language) |
 | ◐ slider | Background opacity |
 | A− / A+ | Text size |
-| ⤓ | Save the transcript as a text file |
+| ⧉ / ⤓ | Copy the whole transcript / save it as a text file |
 | 🗑 | Clear transcript |
 | ⌄ or red close button | Hide the panel (app keeps running) |
-| Menu-bar 💬 icon | Show/hide subtitles, start/pause, quit |
+| Menu-bar 💬 icon | Show/hide subtitles, start/pause, change shortcut, quit |
+| ⌥⌘M (anywhere) | Show/hide the subtitles; change it via the menu-bar icon → *Change Show/Hide Shortcut…* |
 
-Mimo remembers your opacity, text size, EN/DE choice and the panel's position
+Mimo remembers your opacity, text size, language, EN/original choice, shortcut and the panel's position
 and size between launches. Expect a delay of about 2–4 seconds, which is normal
 for speech translation.
 
@@ -105,8 +115,8 @@ Models live in `models/` and are chosen per mode:
 
 | Mode | Preferred model | Why |
 |---|---|---|
-| EN (translate) | `ggml-medium-q5_0.bin` | Most accurate German → English. Turbo models can't translate, so they're never used here. |
-| DE (transcribe) | `ggml-large-v3-turbo-q5_0.bin` | Most accurate *and* fastest German transcription. |
+| EN (translate) | `ggml-medium-q5_0.bin` | Most accurate translation to English. Turbo models can't translate, so they're never used here. |
+| Original (transcribe) | `ggml-large-v3-turbo-q5_0.bin` | Most accurate *and* fastest transcription. |
 
 If a preferred model is missing, the app falls back to whatever else is in
 `models/` (e.g. `scripts/download-model.sh small` for a lighter setup). You
