@@ -49,8 +49,11 @@ Any app's audio ──▶ ScreenCaptureKit (system-audio tap, 16 kHz mono)
 ```
 
 Audio is buffered and re-transcribed every ~1.2 s, shown as a dim "live"
-line. When the speaker pauses (or after ~9 s), the line is committed to the
-transcript and the buffer is cleared.
+line. Finished sentences are committed to the transcript as soon as Whisper
+completes them, so lines end at sentence boundaries rather than mid-sentence;
+a pause commits everything. Lines Whisper tends to invent during silence or
+music ("Thanks for watching!", "Untertitel im Auftrag des ZDF", "[Music]") are
+filtered out.
 
 ## Requirements
 
@@ -121,8 +124,10 @@ Measured on an M1 Pro with a 24 s German sample: small 1.5 s, medium-q5_0
 | `src/AudioCapture.swift` | System-audio capture via ScreenCaptureKit |
 | `src/TranscriptionController.swift` | Buffering, silence detection, streaming loop |
 | `src/WhisperEngine.swift` | Thin wrapper around the whisper.cpp C API |
+| `src/HallucinationFilter.swift` | Drops text Whisper invents during silence or music |
 | `src/ContentView.swift`, `src/OverlayPanel.swift` | SwiftUI overlay UI and floating panel |
-| `scripts/` | Model download and icon generation |
+| `scripts/` | Model download, icon generation, local signing certificate |
+| `tests/check.sh` | Quick self-checks (no model needed) |
 | `vendor/whisper.cpp/` | whisper.cpp (git submodule) |
 
 The app is built with plain `swiftc` — no Xcode project needed.

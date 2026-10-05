@@ -20,10 +20,17 @@ final class WhisperEngine {
         free(language)
     }
 
+    /// One phrase/sentence as Whisper split it. `start` is in samples from the
+    /// beginning of the audio passed to `run`.
+    struct Segment {
+        let text: String
+        let start: Int
+    }
+
     /// Runs Whisper over the given samples.
     /// - translate: true → output English translation, false → German transcript.
-    func run(samples: [Float], translate: Bool) -> String {
-        guard let ctx, samples.count >= 16000 else { return "" }
+    func run(samples: [Float], translate: Bool) -> [Segment] {
+        guard let ctx, samples.count >= 16000 else { return [] }
 
         var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
         params.print_realtime = false
@@ -36,20 +43,19 @@ final class WhisperEngine {
         params.no_context = true
         params.single_segment = false
         params.suppress_blank = true
-        params.no_timestamps = true
+        params.suppress_nst = true    // no "(music)"-style non-speech tokens
+        params.no_timestamps = false  // we need segment start times to split at sentence ends
 
         let status = samples.withUnsafeBufferPointer { buf in
             whisper_full(ctx, params, buf.baseAddress, Int32(buf.count))
         }
-        guard status == 0 else { return "" }
+        guard status == 0 else { return [] }
 
-        var out = ""
-        let n = whisper_full_n_segments(ctx)
-        for i in 0..<n {
-            if let text = whisper_full_get_segment_text(ctx, i) {
-                out += String(cString: text)
-            }
+        return (0..<whisper_full_n_segments(ctx)).compactMap { i in
+            guard let text = whisper_full_get_segment_text(ctx, i) else { return nil }
+            return Segment(
+                text: String(cString: text).trimmingCharacters(in: .whitespacesAndNewlines),
+                start: Int(whisper_full_get_segment_t0(ctx, i)) * 160)  // t0 is in 10 ms units
         }
-        return out.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

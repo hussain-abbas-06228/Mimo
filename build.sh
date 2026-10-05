@@ -44,8 +44,7 @@ mkdir -p build
 swiftc -O -swift-version 5 -target arm64-apple-macos14.0 \
   -import-objc-header src/Bridging.h \
   -I "$WCPP/include" -I "$WCPP/ggml/include" \
-  src/main.swift src/OverlayPanel.swift src/ContentView.swift \
-  src/AudioCapture.swift src/WhisperEngine.swift src/TranscriptionController.swift \
+  src/*.swift \
   -L "$WCPP/build/src" \
   -L "$WCPP/build/ggml/src" \
   -L "$WCPP/build/ggml/src/ggml-blas" \

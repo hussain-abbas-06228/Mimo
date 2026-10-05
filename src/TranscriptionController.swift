@@ -42,7 +42,8 @@ final class TranscriptionController: ObservableObject, @unchecked Sendable {
 
     private let sampleRate = 16000
     private var minSamples: Int { sampleRate * 3 / 2 }        // 1.5 s before first run
-    private var commitSamples: Int { sampleRate * 9 }         // force commit at 9 s
+    private var splitSamples: Int { sampleRate * 5 }          // after 5 s, commit finished sentences
+    private var hardCommitSamples: Int { sampleRate * 20 }    // never-pausing speaker: cut at 20 s
     private var silenceCommitSamples: Int { sampleRate * 5 / 2 } // pause-commit needs ≥ 2.5 s
     private let silenceRMS: Float = 0.0045
 
@@ -174,25 +175,53 @@ final class TranscriptionController: ObservableObject, @unchecked Sendable {
         }
 
         inferenceBusy = true
-        let text = engine.run(samples: window, translate: translate)
+        let segments = engine.run(samples: window, translate: translate)
         inferenceBusy = false
 
-        let shouldCommit =
-            window.count >= commitSamples ||
-            (trailingSilent && window.count >= silenceCommitSamples && !text.isEmpty)
-
-        if shouldCommit {
-            consume(window.count)
-            DispatchQueue.main.async {
-                if !text.isEmpty { self.committed.append(text) }
-                if self.committed.count > 300 {
-                    self.committed.removeFirst(self.committed.count - 300)
-                }
-                self.partial = ""
+        let step = plan(segments: segments, windowCount: window.count, trailingSilent: trailingSilent)
+        if step.consume > 0 { consume(step.consume) }
+        DispatchQueue.main.async {
+            // Skip exact repeats — a stuck Whisper sometimes emits the same line twice.
+            if let line = step.commit, line != self.committed.last { self.committed.append(line) }
+            if self.committed.count > 300 {
+                self.committed.removeFirst(self.committed.count - 300)
             }
-        } else {
-            DispatchQueue.main.async { self.partial = text }
+            self.partial = step.partial
         }
+    }
+
+    /// Decides what to commit to the transcript, how much audio to drop, and
+    /// what stays as the live line.
+    /// - Speaker paused → commit everything.
+    /// - Long stretch without a pause → commit the sentences Whisper has already
+    ///   finished and keep the unfinished rest live, so lines end at sentence
+    ///   boundaries instead of mid-sentence.
+    /// - Hard cap reached (non-stop talking) → commit everything regardless.
+    func plan(segments: [WhisperEngine.Segment], windowCount: Int,
+              trailingSilent: Bool) -> (commit: String?, consume: Int, partial: String) {
+        func clean(_ segs: ArraySlice<WhisperEngine.Segment>) -> String {
+            segs.map(\.text).filter { !HallucinationFilter.isFake($0) }.joined(separator: " ")
+        }
+        let all = clean(segments[...])
+
+        if windowCount >= hardCommitSamples ||
+           (trailingSilent && windowCount >= silenceCommitSamples && !segments.isEmpty) {
+            return (all.isEmpty ? nil : all, windowCount, "")
+        }
+        // Split only after a segment that ends a sentence (Whisper's other segment
+        // breaks can fall mid-sentence), and only where the next segment's
+        // timestamp is plausible — a bad one would drop or repeat audio.
+        if windowCount >= splitSamples,
+           let cut = segments.indices.dropLast().last(where: {
+               segments[$0].text.last.map { ".?!…".contains($0) } ?? false
+           }) {
+            let next = segments[cut + 1].start
+            if next >= sampleRate && next < windowCount {
+                let done = clean(segments[...cut])
+                return (done.isEmpty ? nil : done, next, clean(segments[(cut + 1)...]))
+            }
+        }
+        return (nil, 0, all)
     }
 
     /// Drops the first `count` samples from the shared buffer.
